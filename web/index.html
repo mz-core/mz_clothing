@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mz_clothing</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="app" class="app">
+      <aside class="camera-panel">
+        <header class="camera-header">
+          <span class="eyebrow">Camera</span>
+          <strong>Preview</strong>
+        </header>
+
+        <section id="camera-modes" class="camera-modes" aria-label="Modos de camera"></section>
+
+        <section class="camera-actions" aria-label="Controles de camera">
+          <button id="rotate-left" type="button">Girar esquerda</button>
+          <button id="rotate-right" type="button">Girar direita</button>
+          <button id="zoom-in" type="button">Zoom in</button>
+          <button id="zoom-out" type="button">Zoom out</button>
+          <button id="reset-camera" class="wide" type="button">Resetar camera</button>
+        </section>
+      </aside>
+
+      <aside class="panel">
+        <header class="header">
+          <div>
+            <span class="eyebrow">Loja</span>
+            <h1 id="shop-title">Roupas</h1>
+          </div>
+          <button id="close-button" class="icon-button" type="button" title="Fechar">x</button>
+        </header>
+
+        <nav class="tabs" aria-label="Categorias">
+          <button class="tab active" type="button" data-tab="components">Roupas</button>
+          <button class="tab" type="button" data-tab="props">Acessorios</button>
+        </nav>
+
+        <section id="items" class="items"></section>
+
+        <footer class="footer">
+          <div class="price">
+            <span>Valor</span>
+            <strong id="price">Gratis</strong>
+          </div>
+          <div class="actions">
+            <button id="reset-button" class="secondary" type="button">Resetar</button>
+            <button id="cancel-button" class="secondary" type="button">Cancelar</button>
+            <button id="save-button" class="primary" type="button">Salvar</button>
+          </div>
+        </footer>
+      </aside>
+
+      <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-card">
+          <span class="eyebrow">Confirmacao</span>
+          <h2 id="confirm-title">Confirmar compra</h2>
+          <p>Deseja salvar esta roupa?</p>
+          <div id="modal-error" class="modal-error"></div>
+          <div class="modal-actions">
+            <button id="modal-cancel" class="secondary" type="button">Cancelar</button>
+            <button id="modal-confirm" class="primary" type="button">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
