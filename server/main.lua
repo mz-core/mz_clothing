@@ -274,7 +274,7 @@ local function rowToOutfit(row)
   }
 end
 
-local function chargeIfNeeded(source)
+local function chargeIfNeeded(source, shopId)
   if Config.UseMoney ~= true then
     return true
   end
@@ -284,8 +284,22 @@ local function chargeIfNeeded(source)
     return true
   end
 
+  local account = Config.MoneyType or 'wallet'
   local ok, result, err = pcall(function()
-    return exports['mz_core']:RemoveMoney(source, Config.MoneyType or 'wallet', price)
+    return exports['mz_core']:RemoveMoney(source, account, price, {
+      reason = 'clothing_purchase',
+      category = 'cosmetic_expense',
+      source_resource = 'mz_clothing',
+      source_type = 'resource_payment',
+      counts_as_income = false,
+      counts_as_expense = true,
+      external_ref = nil,
+      data = {
+        action = 'save_current',
+        shop_id = tostring(shopId or ''),
+        payment_method = account
+      }
+    })
   end)
 
   if not ok or result ~= true then
@@ -365,7 +379,7 @@ function MZClothingService.saveCurrent(source, payload)
     return err
   end
 
-  local paid, paymentErr = chargeIfNeeded(source)
+  local paid, paymentErr = chargeIfNeeded(source, shopId)
   if not paid then
     debugPrint(('server save failed payment=%s'):format(tostring(paymentErr)))
     return {
