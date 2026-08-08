@@ -3,7 +3,8 @@ MZClothing = {
   shopId = nil,
   originalAppearance = nil,
   currentAppearance = nil,
-  applyRequestToken = 0
+  applyRequestToken = 0,
+  securityLifecycleId = nil
 }
 
 local function debugPrint(message)
@@ -63,6 +64,11 @@ function MZClothing.openShop(shopId)
     return
   end
 
+  local securityLifecycleId
+  if type(shopId) == 'table' then
+    securityLifecycleId = shopId.securityLifecycleId
+    shopId = shopId.shopId
+  end
   shopId = tostring(shopId or '')
   if shopId == '' or not (Config.ClothingShops or {})[shopId] then
     notify('Roupas', 'Loja invalida.', 'error')
@@ -74,11 +80,22 @@ function MZClothing.openShop(shopId)
     return
   end
 
+  local security = lib.callback.await('mz_clothing:server:beginSecuritySession', false, {
+    shopId = shopId,
+    securityLifecycleId = securityLifecycleId
+  })
+  if not security or security.ok ~= true then
+    notify('Roupas', 'Nao foi possivel validar a sessao da loja.', 'error')
+    return
+  end
+  securityLifecycleId = security.securityLifecycleId
+
   local ped = PlayerPedId()
   MZClothing.open = true
   MZClothing.shopId = shopId
   MZClothing.originalAppearance = MZClothingAppearance.capture()
   MZClothing.currentAppearance = MZClothingAppearance.clone(MZClothing.originalAppearance)
+  MZClothing.securityLifecycleId = securityLifecycleId
 
   FreezeEntityPosition(ped, true)
   SetEntityInvincible(ped, true)
@@ -106,10 +123,16 @@ function MZClothing.close(restore)
   DisplayRadar(true)
   MZClothingShops.setInteractPointsActive(true)
 
+  local securityLifecycleId = MZClothing.securityLifecycleId
   MZClothing.open = false
   MZClothing.shopId = nil
   MZClothing.originalAppearance = nil
   MZClothing.currentAppearance = nil
+  MZClothing.securityLifecycleId = nil
+  if type(securityLifecycleId) == 'string' and securityLifecycleId ~= '' then
+    TriggerServerEvent('mz_clothing:server:endSecuritySession', securityLifecycleId,
+      restore == true and 'clothing_cancelled' or 'clothing_saved')
+  end
 end
 
 function MZClothing.reset()
@@ -234,6 +257,9 @@ AddEventHandler('onResourceStop', function(resourceName)
 
   if MZClothing.open == true and MZClothing.originalAppearance then
     MZClothingAppearance.apply(MZClothing.originalAppearance)
+  end
+  if type(MZClothing.securityLifecycleId) == 'string' and MZClothing.securityLifecycleId ~= '' then
+    TriggerServerEvent('mz_clothing:server:endSecuritySession', MZClothing.securityLifecycleId, 'resource_stopped')
   end
 
   MZClothingCamera.stop()

@@ -34,7 +34,7 @@ local propIds = {
 
 local function getPlayer(source)
   local ok, player = pcall(function()
-    return exports['mz_core']:GetPlayer(source)
+    return exports['mz_core']:GetPlayerSnapshot(source)
   end)
 
   if not ok then
@@ -42,6 +42,13 @@ local function getPlayer(source)
   end
 
   return player
+end
+
+local function shopActionAllowed(source)
+  local ok, allowed, result = pcall(function()
+    return exports['mz_core']:CanPlayerPerformAction(source, 'shop.use')
+  end)
+  return ok and allowed == true and type(result) == 'table' and result.allowed == true
 end
 
 local function decodeJson(value)
@@ -440,7 +447,62 @@ lib.callback.register('mz_clothing:server:getCurrent', function(source)
   return MZClothingService.getCurrent(source)
 end)
 
+local function distanceBetween(left, right)
+  if not left or not right then return nil end
+  local x = (tonumber(left.x) or 0) - (tonumber(right.x) or 0)
+  local y = (tonumber(left.y) or 0) - (tonumber(right.y) or 0)
+  local z = (tonumber(left.z) or 0) - (tonumber(right.z) or 0)
+  return math.sqrt(x * x + y * y + z * z)
+end
+
+local function beginClothingSecuritySession(source, payload)
+  if not shopActionAllowed(source) then return { ok = false, error = 'player_state_blocked' } end
+  payload = type(payload) == 'table' and payload or {}
+  if GetResourceState('mz_banguard') == 'started' then
+    local called, valid = pcall(function()
+      return exports['mz_banguard']:ValidateEventContract(source, 'lifecycle.clothing.open', payload)
+    end)
+    if not called or valid ~= true then return { ok = false, error = 'invalid_security_contract' } end
+  end
+  local shopId = tostring(payload.shopId or '')
+  if not getPlayer(source) then return { ok = false, error = 'player_not_loaded' } end
+
+  if type(payload.securityLifecycleId) == 'string' and GetResourceState('mz_banguard') == 'started' then
+    local checked, active = pcall(function()
+      return exports['mz_banguard']:CheckSecurityLifecycle(
+        source, payload.securityLifecycleId, 'cosmetic_session'
+      )
+    end)
+    if checked and active == true then
+      return { ok = true, securityLifecycleId = payload.securityLifecycleId, delegated = true }
+    end
+  end
+
+  local shop = type(Config.ClothingShops) == 'table' and Config.ClothingShops[shopId] or nil
+  if type(shop) ~= 'table' or not shop.coords then return { ok = false, error = 'invalid_shop' } end
+  local ped = GetPlayerPed(source)
+  if not ped or ped == 0 or not DoesEntityExist(ped) then return { ok = false, error = 'player_ped_unavailable' } end
+  local distance = distanceBetween(GetEntityCoords(ped), shop.coords)
+  local allowedDistance = math.max(3.0, tonumber(shop.interact and shop.interact.interactDistance) or 2.0) + 2.0
+  if not distance or distance > allowedDistance then return { ok = false, error = 'too_far_from_shop' } end
+
+  if GetResourceState('mz_banguard') ~= 'started' then return { ok = true } end
+  local lifecycleId
+  local issued = pcall(function()
+    lifecycleId = exports['mz_banguard']:BeginSecurityLifecycle(source, 'cosmetic_session', 180000, {
+      model = GetEntityModel(ped), bucket = GetPlayerRoutingBucket(source), reason = 'clothing_shop'
+    })
+  end)
+  if not issued or type(lifecycleId) ~= 'string' then return { ok = false, error = 'security_session_failed' } end
+  return { ok = true, securityLifecycleId = lifecycleId }
+end
+
+lib.callback.register('mz_clothing:server:beginSecuritySession', function(source, payload)
+  return beginClothingSecuritySession(source, payload)
+end)
+
 lib.callback.register('mz_clothing:server:saveCurrent', function(source, payload)
+  if not shopActionAllowed(source) then return { ok = false, error = 'player_state_blocked' } end
   return MZClothingService.saveCurrent(source, payload)
 end)
 
@@ -454,6 +516,13 @@ RegisterNetEvent('mz_clothing:server:requestApplySaved', function()
   if result.ok == true and type(result.appearance) == 'table' then
     TriggerClientEvent('mz_clothing:client:applyClothing', src, result.appearance)
   end
+end)
+
+RegisterNetEvent('mz_clothing:server:endSecuritySession', function(sessionId, reason)
+  if GetResourceState('mz_banguard') ~= 'started' then return end
+  pcall(function()
+    exports['mz_banguard']:EndSecurityLifecycle(source, sessionId, tostring(reason or 'clothing_closed'))
+  end)
 end)
 
 exports('GetCurrentOutfit', function(citizenid)
