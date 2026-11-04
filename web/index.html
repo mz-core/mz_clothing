@@ -3,71 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mz_clothing</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta name="description" content="Loja de roupas do MZ Framework" />
+    <title>Loja de roupas MZ</title>
+    <link rel="stylesheet" href="style.css?v=20261015store1" />
   </head>
   <body>
-    <main id="app" class="app">
-      <aside class="camera-panel">
-        <header class="camera-header">
-          <span class="eyebrow">Camera</span>
-          <strong>Preview</strong>
-        </header>
-
-        <section id="camera-modes" class="camera-modes" aria-label="Modos de camera"></section>
-
-        <section class="camera-actions" aria-label="Controles de camera">
-          <button id="rotate-left" type="button">Girar esquerda</button>
-          <button id="rotate-right" type="button">Girar direita</button>
-          <button id="zoom-in" type="button">Zoom in</button>
-          <button id="zoom-out" type="button">Zoom out</button>
-          <button id="reset-camera" class="wide" type="button">Resetar camera</button>
-        </section>
+    <main id="app" class="app" aria-hidden="true">
+      <aside class="camera-panel" aria-label="Controles da visualizacao">
+        <span class="eyebrow">Provador</span>
+        <strong>Veja no personagem</strong>
+        <div id="camera-modes" class="camera-modes"></div>
+        <div class="camera-actions">
+          <button id="rotate-left" type="button" aria-label="Girar personagem para a esquerda">↶</button>
+          <button id="rotate-right" type="button" aria-label="Girar personagem para a direita">↷</button>
+          <button id="zoom-in" type="button" aria-label="Aproximar camera">+</button>
+          <button id="zoom-out" type="button" aria-label="Afastar camera">−</button>
+        </div>
       </aside>
 
-      <aside class="panel">
+      <section class="store-panel" aria-labelledby="shop-title">
         <header class="header">
-          <div>
-            <span class="eyebrow">Loja</span>
-            <h1 id="shop-title">Roupas</h1>
-          </div>
-          <button id="close-button" class="icon-button" type="button" title="Fechar">x</button>
+          <div><span class="eyebrow">MZ Clothing</span><h1 id="shop-title">Loja de roupas</h1></div>
+          <span class="esc-hint">ESC <small>fechar</small></span>
         </header>
 
-        <nav class="tabs" aria-label="Categorias">
-          <button class="tab active" type="button" data-tab="components">Roupas</button>
-          <button class="tab" type="button" data-tab="props">Acessorios</button>
+        <nav class="tabs" aria-label="Secoes da loja">
+          <button class="tab active" data-tab="catalog" type="button">Comprar</button>
+          <button class="tab" data-tab="outfits" type="button">Outfits</button>
         </nav>
 
-        <section id="items" class="items"></section>
+        <section id="catalog-view" class="view catalog-view">
+          <nav id="categories" class="categories" aria-label="Categorias de roupa"></nav>
+          <section class="product" aria-live="polite">
+            <div class="product-heading">
+              <span id="selection-group" class="eyebrow">Categoria</span>
+              <h2 id="selection-label">Escolha uma roupa</h2>
+              <p id="selection-tech" class="selection-tech">A aparencia sera mostrada no personagem.</p>
+            </div>
 
-        <footer class="footer">
-          <div class="price">
-            <span>Valor</span>
-            <strong id="price">Gratis</strong>
-          </div>
-          <div class="actions">
-            <button id="reset-button" class="secondary" type="button">Resetar</button>
-            <button id="cancel-button" class="secondary" type="button">Cancelar</button>
-            <button id="save-button" class="primary" type="button">Salvar</button>
-          </div>
-        </footer>
-      </aside>
+            <div class="selectors">
+              <div class="selector-row">
+                <div><small>Modelo</small><strong id="model-value">—</strong></div>
+                <div class="stepper">
+                  <button id="model-prev" type="button" aria-label="Modelo anterior">←</button>
+                  <button id="model-next" type="button" aria-label="Proximo modelo">→</button>
+                </div>
+              </div>
+              <div class="selector-row">
+                <div><small>Textura</small><strong id="texture-value">—</strong></div>
+                <div class="stepper">
+                  <button id="texture-prev" type="button" aria-label="Textura anterior">←</button>
+                  <button id="texture-next" type="button" aria-label="Proxima textura">→</button>
+                </div>
+              </div>
+            </div>
 
-      <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <div class="modal-card">
-          <span class="eyebrow">Confirmacao</span>
-          <h2 id="confirm-title">Confirmar compra</h2>
-          <p>Deseja salvar esta roupa?</p>
-          <div id="modal-error" class="modal-error"></div>
-          <div class="modal-actions">
-            <button id="modal-cancel" class="secondary" type="button">Cancelar</button>
-            <button id="modal-confirm" class="primary" type="button">Confirmar</button>
-          </div>
-        </div>
-      </div>
+            <footer class="checkout">
+              <div><small>Preco</small><strong id="selection-price">$0</strong></div>
+              <button id="buy" class="primary" type="button">Comprar para a bag</button>
+            </footer>
+          </section>
+        </section>
+
+        <section id="outfits-view" class="view hidden">
+          <form id="outfit-form" class="outfit-form">
+            <label for="outfit-name">Salvar roupa equipada</label>
+            <div><input id="outfit-name" name="outfit-name" maxlength="32" placeholder="Ex.: Trabalho…" autocomplete="off" /><button class="primary" type="submit">Salvar</button></div>
+          </form>
+          <div id="outfits" class="outfits"></div>
+        </section>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
     </main>
-
-    <script src="script.js"></script>
+    <script src="script.js?v=20261015store1"></script>
   </body>
 </html>

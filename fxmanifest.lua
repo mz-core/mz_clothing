@@ -12,6 +12,7 @@ ui_page 'web/index.html'
 shared_scripts {
   '@ox_lib/init.lua',
   'shared/config.lua',
+  'shared/catalog.lua',
   'shared/shops.lua'
 }
 
@@ -24,6 +25,7 @@ server_scripts {
 client_scripts {
   'client/appearance.lua',
   'client/camera.lua',
+  'client/inventory_preview.lua',
   'client/shops.lua',
   'client/nui.lua',
   'client/main.lua'
@@ -38,5 +40,7 @@ files {
 dependencies {
   'oxmysql',
   'ox_lib',
-  'mz_core'
+  'mz_core',
+  'mz_economy',
+  'mz_inventory'
 }

@@ -1,96 +1,64 @@
 MZClothingNui = {}
 
 function MZClothingNui.open(payload)
+  SetNuiFocusKeepInput(false)
   SetNuiFocus(true, true)
-  SendNUIMessage({
-    action = 'open',
-    payload = payload
-  })
+  SendNUIMessage({ action = 'open', payload = payload })
 end
 
 function MZClothingNui.close()
+  SetNuiFocusKeepInput(false)
   SetNuiFocus(false, false)
-  SendNUIMessage({
-    action = 'close'
-  })
+  SendNUIMessage({ action = 'close' })
 end
 
 function MZClothingNui.setBusy(value)
-  SendNUIMessage({
-    action = 'busy',
-    busy = value == true
-  })
-end
-
-function MZClothingNui.update(payload)
-  SendNUIMessage({
-    action = 'update',
-    payload = payload
-  })
+  SendNUIMessage({ action = 'busy', busy = value == true })
 end
 
 RegisterNUICallback('close', function(_, cb)
-  MZClothing.close(true)
+  MZClothing.close('nui_closed')
   cb({ ok = true })
 end)
 
-RegisterNUICallback('reset', function(_, cb)
-  local result = MZClothing.reset()
-  cb(result)
+RegisterNUICallback('selectVariant', function(data, cb)
+  cb(MZClothing.selectVariant(data))
 end)
 
-RegisterNUICallback('preview', function(data, cb)
-  local result = MZClothing.preview(data and data.appearance)
-  cb(result)
+RegisterNUICallback('purchase', function(_, cb)
+  cb(MZClothing.purchase())
 end)
 
-RegisterNUICallback('save', function(data, cb)
-  if Config.Debug == true then
-    print('[mz_clothing][debug] nui save callback')
-  end
-
-  local result = MZClothing.save(data)
-  cb(result)
+RegisterNUICallback('listOutfits', function(_, cb)
+  cb(MZClothing.listOutfits())
 end)
 
-RegisterNUICallback('rotateLeft', function(_, cb)
-  MZClothingCamera.rotate(-(tonumber((Config.Camera or {}).rotateStep) or 18.0))
-  cb({ ok = true })
+RegisterNUICallback('saveOutfit', function(data, cb)
+  cb(MZClothing.saveOutfit(data and data.name))
 end)
 
-RegisterNUICallback('rotateRight', function(_, cb)
-  MZClothingCamera.rotate(tonumber((Config.Camera or {}).rotateStep) or 18.0)
-  cb({ ok = true })
+RegisterNUICallback('applyOutfit', function(data, cb)
+  cb(MZClothing.applyOutfit(data and data.name))
 end)
 
-RegisterNUICallback('zoomIn', function(_, cb)
-  MZClothingCamera.zoomIn()
-  cb({ ok = true })
+RegisterNUICallback('deleteOutfit', function(data, cb)
+  cb(MZClothing.deleteOutfit(data and data.name))
 end)
 
-RegisterNUICallback('zoomOut', function(_, cb)
-  MZClothingCamera.zoomOut()
-  cb({ ok = true })
-end)
-
-RegisterNUICallback('resetCamera', function(_, cb)
-  MZClothingCamera.reset()
-  cb({ ok = true })
-end)
+for callback, action in pairs({
+  rotateLeft = function() MZClothingCamera.rotate(-(tonumber((Config.Camera or {}).rotateStep) or 18.0)) end,
+  rotateRight = function() MZClothingCamera.rotate(tonumber((Config.Camera or {}).rotateStep) or 18.0) end,
+  zoomIn = MZClothingCamera.zoomIn,
+  zoomOut = MZClothingCamera.zoomOut,
+  resetCamera = MZClothingCamera.reset
+}) do
+  RegisterNUICallback(callback, function(_, cb)
+    action()
+    cb({ ok = true })
+  end)
+end
 
 RegisterNUICallback('setCameraMode', function(data, cb)
   MZClothingCamera.setMode(data and data.mode)
-  cb({ ok = true })
-end)
-
-RegisterNUICallback('rotate', function(data, cb)
-  MZClothingCamera.rotate(data and data.amount or 0.0)
-  cb({ ok = true })
-end)
-
-RegisterNUICallback('zoom', function(data, cb)
-  if data and tonumber(data.value) then
-    MZClothingCamera.setMode(MZClothingCamera.mode or (Config.Camera or {}).defaultMode or 'full')
-  end
   cb({ ok = true })
 end)

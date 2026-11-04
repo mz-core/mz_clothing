@@ -30,6 +30,10 @@ local function getModelName(ped)
   return 'mp_m_freemode_01'
 end
 
+function MZClothingAppearance.getModelName()
+  return getModelName(PlayerPedId())
+end
+
 local function integerOr(value, fallback)
   local numeric = tonumber(value)
   if numeric == nil then
@@ -39,22 +43,157 @@ local function integerOr(value, fallback)
   return math.floor(numeric)
 end
 
-local function clone(value)
-  if type(value) ~= 'table' then
-    return value
-  end
+local componentDefaults = {
+  [1] = 0, [3] = 15, [4] = 21, [5] = 0, [6] = 34,
+  [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15
+}
 
-  local out = {}
-  for key, child in pairs(value) do
-    out[key] = clone(child)
+local function applyVariant(ped, variant)
+  if type(variant) ~= 'table' then return false end
+  local nativeId = integerOr(variant.native_id, -1)
+  local drawable = integerOr(variant.drawable, -1)
+  local texture = math.max(0, integerOr(variant.texture, 0))
+  if variant.kind == 'prop' then
+    if nativeId < 0 or nativeId > 7 then return false end
+    if drawable < 0 then ClearPedProp(ped, nativeId) return true end
+    if type(variant.collection) == 'string' then
+      SetPedCollectionPropIndex(ped, nativeId, variant.collection, drawable, texture, true)
+      return true
+    end
+    if drawable >= (GetNumberOfPedPropDrawableVariations(ped, nativeId) or 0) then return false end
+    SetPedPropIndex(ped, nativeId, drawable, texture, true)
+    return true
   end
-  return out
+  if variant.kind ~= 'component' or nativeId < 0 or nativeId > 11 or drawable < 0 then return false end
+  if type(variant.collection) == 'string' then
+    SetPedCollectionComponentVariation(
+      ped, nativeId, variant.collection, drawable, texture, integerOr(variant.palette, 0)
+    )
+    return true
+  end
+  if drawable >= (GetNumberOfPedDrawableVariations(ped, nativeId) or 0) then return false end
+  SetPedComponentVariation(ped, nativeId, drawable, texture, integerOr(variant.palette, 0))
+  return true
 end
 
-function MZClothingAppearance.getDefinitions()
+local function drawableCount(ped, category, collection)
+  if type(GetPedCollectionsCount) == 'function' then
+    if category.kind == 'prop' then
+      return math.max(0, GetNumberOfPedCollectionPropDrawableVariations(
+        ped, category.native_id, collection
+      ) or 0)
+    end
+    return math.max(0, GetNumberOfPedCollectionDrawableVariations(
+      ped, category.native_id, collection
+    ) or 0)
+  end
+  if category.kind == 'prop' then
+    return math.max(0, GetNumberOfPedPropDrawableVariations(ped, category.native_id) or 0)
+  end
+  return math.max(0, GetNumberOfPedDrawableVariations(ped, category.native_id) or 0)
+end
+
+local function textureCount(ped, category, collection, drawable)
+  if type(GetPedCollectionsCount) == 'function' then
+    if category.kind == 'prop' then
+      return math.max(1, GetNumberOfPedCollectionPropTextureVariations(
+        ped, category.native_id, collection, drawable
+      ) or 0)
+    end
+    return math.max(1, GetNumberOfPedCollectionTextureVariations(
+      ped, category.native_id, collection, drawable
+    ) or 0)
+  end
+  if category.kind == 'prop' then
+    return math.max(1, GetNumberOfPedPropTextureVariations(ped, category.native_id, drawable) or 0)
+  end
+  return math.max(1, GetNumberOfPedTextureVariations(ped, category.native_id, drawable) or 0)
+end
+
+function MZClothingAppearance.enumerate(categories)
+  local ped = PlayerPedId()
+  local result = {}
+  local collectionNames = { '' }
+  if type(GetPedCollectionsCount) == 'function' then
+    collectionNames = {}
+    for index = 0, (GetPedCollectionsCount(ped) or 0) - 1 do
+      collectionNames[#collectionNames + 1] = tostring(GetPedCollectionName(ped, index) or '')
+    end
+  end
+
+  for _, category in ipairs(type(categories) == 'table' and categories or {}) do
+    local entry = {
+      slot = tostring(category.slot),
+      label = tostring(category.label or category.slot),
+      group = tostring(category.group or 'accessories'),
+      kind = tostring(category.kind),
+      native_id = integerOr(category.native_id, -1),
+      price = math.max(0, integerOr(category.price, 0)),
+      camera = tostring(category.camera or 'full'),
+      collections = {},
+      model_count = 0
+    }
+    if (entry.kind == 'component' or entry.kind == 'prop') and entry.native_id >= 0 then
+      for _, collection in ipairs(collectionNames) do
+        local count = drawableCount(ped, entry, collection)
+        if count > 0 then
+          entry.collections[#entry.collections + 1] = { name = collection, count = count }
+          entry.model_count = entry.model_count + count
+        end
+      end
+    end
+    if entry.model_count > 0 then result[#result + 1] = entry end
+  end
+  return result
+end
+
+function MZClothingAppearance.select(category, current, modelDelta, textureDelta)
+  if type(category) ~= 'table' or type(category.collections) ~= 'table'
+      or #category.collections == 0 then return nil, 'category_empty' end
+  local ped = PlayerPedId()
+  local total = math.max(1, integerOr(category.model_count, 1))
+  local absolute = integerOr(current and current.model_index, 1) - 1
+  absolute = (absolute + integerOr(modelDelta, 0)) % total
+
+  local remaining = absolute
+  local collection = category.collections[1]
+  local drawable = 0
+  for _, candidate in ipairs(category.collections) do
+    if remaining < candidate.count then
+      collection = candidate
+      drawable = remaining
+      break
+    end
+    remaining = remaining - candidate.count
+  end
+
+  local textures = textureCount(ped, category, collection.name, drawable)
+  local texture = integerOr(current and current.texture, 0)
+  if integerOr(modelDelta, 0) ~= 0 then texture = 0 end
+  texture = (texture + integerOr(textureDelta, 0)) % textures
+  local variant = {
+    slot = category.slot,
+    model = getModelName(ped),
+    collection = tostring(collection.name or ''),
+    drawable = drawable,
+    texture = texture,
+    palette = 0
+  }
+  local applied = applyVariant(ped, {
+    kind = category.kind,
+    native_id = category.native_id,
+    collection = variant.collection,
+    drawable = variant.drawable,
+    texture = variant.texture,
+    palette = variant.palette
+  })
+  if not applied then return nil, 'invalid_variant' end
   return {
-    components = clone(componentDefs),
-    props = clone(propDefs)
+    variant = variant,
+    model_index = absolute + 1,
+    model_count = total,
+    texture = texture,
+    texture_count = textures
   }
 end
 
@@ -132,46 +271,20 @@ function MZClothingAppearance.apply(appearance)
   return true
 end
 
-function MZClothingAppearance.getLimits(appearance)
-  local ped = PlayerPedId()
-  local limits = {
-    components = {},
-    props = {}
-  }
-
-  appearance = appearance or MZClothingAppearance.capture()
-
-  for _, def in ipairs(componentDefs) do
-    local current = appearance.components and appearance.components[tostring(def.id)] or {}
-    local drawable = integerOr(current.drawable, GetPedDrawableVariation(ped, def.id))
-    local drawableMax = math.max((GetNumberOfPedDrawableVariations(ped, def.id) or 1) - 1, 0)
-    local textureMax = math.max((GetNumberOfPedTextureVariations(ped, def.id, drawable) or 1) - 1, 0)
-
-    limits.components[tostring(def.id)] = {
-      drawableMax = drawableMax,
-      textureMax = textureMax
-    }
-  end
-
-  for _, def in ipairs(propDefs) do
-    local current = appearance.props and appearance.props[tostring(def.id)] or {}
-    local drawable = integerOr(current.drawable, GetPedPropIndex(ped, def.id))
-    local drawableMax = math.max((GetNumberOfPedPropDrawableVariations(ped, def.id) or 1) - 1, -1)
-    local textureMax = 0
-
-    if drawable >= 0 then
-      textureMax = math.max((GetNumberOfPedPropTextureVariations(ped, def.id, drawable) or 1) - 1, 0)
-    end
-
-    limits.props[tostring(def.id)] = {
-      drawableMax = drawableMax,
-      textureMax = textureMax
-    }
-  end
-
-  return limits
+function MZClothingAppearance.applyVariant(variant)
+  return applyVariant(PlayerPedId(), variant)
 end
 
-function MZClothingAppearance.clone(value)
-  return clone(value)
+function MZClothingAppearance.applyProjection(projection)
+  if type(projection) ~= 'table' then return false end
+  local ped = PlayerPedId()
+  local female = GetEntityModel(ped) == joaat('mp_f_freemode_01')
+  for componentId, drawable in pairs(componentDefaults) do
+    if componentId == 4 and female then drawable = 15 end
+    if componentId == 6 and female then drawable = 35 end
+    SetPedComponentVariation(ped, componentId, drawable, 0, 2)
+  end
+  for _, propId in ipairs({ 0, 1, 2, 6, 7 }) do ClearPedProp(ped, propId) end
+  for _, item in ipairs(projection.items or {}) do applyVariant(ped, item.variant) end
+  return true
 end

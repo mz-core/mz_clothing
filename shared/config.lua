@@ -12,11 +12,12 @@ Config.DefaultLoopSleep = 1000
 Config.NearLoopSleep = 0
 Config.InteractCooldownMs = 800
 
-Config.ClothingPrice = 500
-Config.UseMoney = false
+Config.UseMoney = true
 Config.MoneyType = 'wallet'
+Config.PurchaseOperationTtlSeconds = 180
 
-Config.MaxPayloadBytes = 65536
+Config.InventoryFrontendPedPreview = true
+Config.InventoryFrontendPedSlot = 1
 
 Config.DefaultMarker = {
   enabled = true,
@@ -54,9 +55,9 @@ Config.Camera = {
   modes = {
     full = {
       label = 'Corpo todo',
-      offset = vec3(0.0, 2.6, 0.35),
-      point = vec3(0.0, 0.0, 0.25),
-      fov = 45.0
+      offset = vec3(0.0, 3.2, 0.72),
+      point = vec3(0.0, 0.0, 0.78),
+      fov = 42.0
     },
     face = {
       label = 'Rosto',
